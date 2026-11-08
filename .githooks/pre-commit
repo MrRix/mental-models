@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fail closed: if python3 or the guard is missing, the commit is blocked.
+exec python3 "$(git rev-parse --show-toplevel)/guard/precommit_guard.py"

@@ -1,0 +1,3 @@
+# SHA-256 of lowercased personal identifiers blocked from this public repo. Values are kept private.
+a89b6774da12c362bf9bb2d84cbc1de6c25984aec55ab09f90c64c57ffb5e759
+75f77949bd2743a616becfeb590259f6e25239d4d16664b563f590ac3de0d805
