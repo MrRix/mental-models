@@ -17,7 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from urllib.parse import urlsplit  # noqa: E402
-from mmlib import DOMAINS, ROOT, URL, load_models, parse_cards, parse_index, word_count  # noqa: E402
+from mmlib import (DOMAINS, ROOT, URL, load_models, parse_cards, parse_index,  # noqa: E402
+                   parse_situations, word_count)
 
 OUT = ROOT / "_site"
 STATIC = ROOT / "site"
@@ -29,6 +30,8 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
 TOKEN = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]"
                    r"|\[([^\]]+)\]\((" + URL + r")\)")
 TYPE_LABEL = {"model": "Model", "heuristic": "Heuristic", "bias": "Bias"}
+# Tappable example searches on the issue finder (must each return good results; tested).
+GUIDE_EXAMPLES = ["my project keeps slipping", "should I quit or keep going", "my boss takes credit"]
 
 
 def esc(s):
@@ -106,8 +109,22 @@ class Renderer:
         return "\n".join(html_out)
 
 
-def page(title, body, root, desc="", body_attrs=""):
+SETTINGS_BTN = ('<button class="settings-btn" type="button" data-open-settings aria-haspopup="dialog" '
+                'aria-label="Display settings"><span aria-hidden="true">Aa</span></button>')
+
+
+def partial(name):
+    """Static HTML fragment owned by the design side (scripts/partials.py), injected verbatim."""
+    try:
+        import partials
+    except ImportError:
+        return ""
+    return getattr(partials, name, "")
+
+
+def page(title, body, root, desc="", body_attrs="", scripts=()):
     t = esc(title) if title == TITLE else f"{esc(title)} · {TITLE}"
+    extra = "".join(f'\n<script src="{root}{s}" defer></script>' for s in scripts)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -126,12 +143,15 @@ def page(title, body, root, desc="", body_attrs=""):
 <link rel="manifest" href="{root}manifest.webmanifest">
 <link rel="icon" href="{root}icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="{root}icon-180.png">
+<script src="{root}prefs.js"></script>
 <link rel="stylesheet" href="{root}style.css">
 <title>{t}</title>
 </head>
 <body data-root="{root}"{body_attrs}>
 {body}
+{partial("SETTINGS_HTML")}
 <script src="{root}app.js" defer></script>
+<script src="{root}settings.js" defer></script>{extra}
 </body>
 </html>
 """
@@ -183,6 +203,16 @@ def build():
                 hit = r.resolve(t.group(1))
                 if hit and hit["name"] != n:
                     backlinks[hit["name"]].add(n)
+
+    # situations (issue finder): which situations each model appears in
+    categories, _ = parse_situations()
+    appears_in = {n: [] for n in models}
+    for c in categories:
+        for s in c["situations"]:
+            for mname, _reason in s["models"]:
+                hit = r.resolve(mname)
+                if hit:
+                    appears_in[hit["name"]].append(s)
 
     slugs = sorted(m["slug"] for m in models.values())
     data_attr = f' data-slugs="{attr(json.dumps(slugs))}" data-total="{len(models)}"'
@@ -236,6 +266,11 @@ def build():
             links = "".join(f'<li><a class="wl" href="{root}m/{models[b]["slug"]}.html">{esc(b)}</a></li>'
                             for b in bl)
             bl_html = f'<section class="backlinks"><h2>Linked from</h2><ul>{links}</ul></section>'
+        if appears_in[n]:
+            sits = "".join(f'<li><a href="{root}guide.html#{s["id"]}">{esc(s["title"])}</a></li>'
+                           for s in appears_in[n])
+            bl_html = (f'<section class="comes-up"><h2>Comes up when</h2><ul>{sits}</ul></section>'
+                       + bl_html)
 
         # "Up next": models this article links to (in reading order), then those linking here.
         # The first is rendered statically; app.js may swap in the first one not yet read.
@@ -261,7 +296,10 @@ def build():
 
         body = f"""<header class="bar">
   <a class="back" href="{root}index.html" aria-label="All models"><span aria-hidden="true">‹</span> All models</a>
-  <button class="random" type="button" data-current="{m['slug']}">Random</button>
+  <span class="bar-actions">
+    <button class="random" type="button" data-current="{m['slug']}">Random</button>
+    {SETTINGS_BTN}
+  </span>
   <span class="readbar" id="readbar" aria-hidden="true"></span>
 </header>
 <main class="article" data-slug="{m['slug']}">
@@ -297,7 +335,7 @@ def build():
             sections.append(f'<section class="group"><h2>{esc(heading)} <span class="count">{len(lis)}</span></h2>'
                             f'<ul class="list">{"".join(lis)}</ul></section>')
     body = f"""<header class="home">
-  <h1>{TITLE}</h1>
+  <div class="title-row"><h1>{TITLE}</h1>{SETTINGS_BTN}</div>
   <p class="sub">{len(models)} models, heuristics and biases<span id="readcount"></span></p>
   <p class="offline" id="offline" role="status" hidden></p>
   <a class="resume" id="resume" href="index.html" hidden>
@@ -308,6 +346,10 @@ def build():
     <button class="random primary" type="button">Random model</button>
     <a class="button" href="cards.html">Review cards</a>
   </div>
+  <a class="finder" href="guide.html">
+    <span class="label">What's going on?</span>
+    <span class="hint">Describe a situation or pick one to see the models that fit</span>
+  </a>
   <label class="search"><span class="sr">Search models</span>
     <input id="q" type="search" placeholder="Search models" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
   </label>
@@ -322,7 +364,7 @@ def build():
     cards_json = json.dumps(all_cards, ensure_ascii=False).replace("<", "\\u003c")
     body = f"""<header class="bar">
   <a class="back" href="index.html"><span aria-hidden="true">‹</span> All models</a>
-  <span class="progress" id="progress"></span>
+  <span class="bar-actions"><span class="progress" id="progress"></span>{SETTINGS_BTN}</span>
 </header>
 <main class="deck">
   <h1 class="sr">Review cards</h1>
@@ -340,6 +382,62 @@ def build():
 </main>
 <script type="application/json" id="cards-data">{cards_json}</script>"""
     files["cards.html"] = page("Review cards", body, "", "Recall cards", data_attr)
+
+    # guide (issue finder): static menu of situations + search data for site/guide.js
+    menu = []
+    for c in categories:
+        items = []
+        for s in c["situations"]:
+            picks = []
+            for mname, reason in s["models"]:
+                hit = r.resolve(mname)
+                if not hit:
+                    continue
+                picks.append(f'<li><a href="m/{hit["slug"]}.html"><span class="name">{esc(hit["name"])}</span>'
+                             f'<span class="why">{esc(plain_text(reason))}</span></a></li>')
+            items.append(f'<details class="situation" id="{s["id"]}"><summary><span class="title">{esc(s["title"])}</span>'
+                         f'<span class="n">{len(picks)} models</span></summary><ul class="picks">{"".join(picks)}</ul></details>')
+        menu.append(f'<section class="cat"><h2>{esc(c["name"])}</h2>{"".join(items)}</section>')
+
+    def sec_text(m, h):
+        return plain_text(dict(m["sections"]).get(h, ""))
+    gdata = {
+        "models": [{
+            "n": m["name"], "s": m["slug"], "t": TYPE_LABEL.get(m["fm"].get("type", ""), ""),
+            "d": plain_text(desc.get(m["name"], "")), "a": m["fm"].get("aliases") or [],
+            "f": {"what": sec_text(m, "What it is"), "trigger": sec_text(m, "Trigger question"),
+                  "best": sec_text(m, "Best used when"), "why": sec_text(m, "Why it works"),
+                  "confused": sec_text(m, "Often confused with")},
+        } for m in sorted(models.values(), key=lambda x: x["name"])],
+        "situations": [{
+            "id": s["id"], "t": s["title"], "c": c["name"], "k": s["keywords"],
+            "m": [[r.resolve(mn)["slug"], plain_text(reason)] for mn, reason in s["models"] if r.resolve(mn)],
+        } for c in categories for s in c["situations"]],
+    }
+    gjson = json.dumps(gdata, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+    n_sits = len(gdata["situations"])
+    examples_html = "".join(f'<button type="button" class="example" data-example="{attr(x)}">{esc(x)}</button>'
+                            for x in GUIDE_EXAMPLES)
+    body = f"""<header class="bar">
+  <a class="back" href="index.html"><span aria-hidden="true">‹</span> All models</a>
+  <span class="bar-actions">{SETTINGS_BTN}</span>
+</header>
+<main class="guide">
+  <h1>What's going on?</h1>
+  <p class="sub">Describe the situation in your own words, or pick one of {n_sits} common situations below.</p>
+  <label class="search"><span class="sr">Describe the situation</span>
+    <input id="gq" type="search" placeholder="e.g. my project keeps slipping" autocomplete="off" autocapitalize="off" spellcheck="true" enterkeyhint="search">
+  </label>
+  <div class="examples"><span class="label">Try</span>{examples_html}</div>
+  <div id="gresults" class="gresults" hidden></div>
+  <div id="gmenu" class="gmenu">
+    <h2 class="menu-title">Common situations</h2>
+    {''.join(menu)}
+  </div>
+</main>
+<script type="application/json" id="guide-data">{gjson}</script>"""
+    files["guide.html"] = page("What's going on?", body, "", "Find models for a situation", data_attr,
+                               scripts=("guide.js",))
 
     files["404.html"] = page("Not found", '<main class="article"><h1>Not found</h1>'
                              '<p><a href="./index.html">Back to all models</a></p></main>', "", "", data_attr)

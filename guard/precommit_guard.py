@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 LOG = ROOT / "logs" / "guard.log"
 
 ALLOWED_PATHS = [
-    "CLAUDE.md", "README.md", "Models Index.md", ".gitignore",
+    "CLAUDE.md", "README.md", "Models Index.md", "Situations.md", ".gitignore",
     "Models/*.md",
     "scripts/*.py",
     "site/*.css", "site/*.js",

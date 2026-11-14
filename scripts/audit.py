@@ -127,6 +127,41 @@ def audit():
             dom = models.get(n, {}).get("fm", {}).get("domain")
             if dom and heading.lower() != dom:
                 errors.append(f"Index: [[{n}]] is under '{heading}' but its domain is '{dom}'")
+    # Situations.md (issue finder guide)
+    from mmlib import SITUATIONS, parse_situations
+    cats, sit_errors = parse_situations()
+    errors += [f"Situations: {x}" for x in sit_errors]
+    if SITUATIONS.exists():
+        stext = SITUATIONS.read_text(encoding="utf-8")
+        if EM_DASH in stext or re.search(r"\s" + EN_DASH + r"\s", stext):
+            errors.append("Situations: contains em or en dash")
+        seen, used = set(), Counter()
+        for c in cats:
+            if not c["situations"]:
+                errors.append(f"Situations: category '{c['name']}' is empty")
+            for s in c["situations"]:
+                tag = f"Situations: '{s['title']}'"
+                if s["id"] in seen:
+                    errors.append(f"{tag} is duplicated")
+                seen.add(s["id"])
+                if not s["keywords"]:
+                    errors.append(f"{tag} has no keywords")
+                if not 1 <= len(s["models"]) <= 5:
+                    errors.append(f"{tag} lists {len(s['models'])} models (1 to 5)")
+                elif not 2 <= len(s["models"]) <= 4:
+                    warnings.append(f"{tag} lists {len(s['models'])} models (target 2 to 4)")
+                for mname, reason in s["models"]:
+                    used[mname] += 1
+                    if mname not in models:
+                        errors.append(f"{tag}: [[{mname}]] is not an article filename")
+                    if len(reason.split()) > 30:
+                        warnings.append(f"{tag}: reason for {mname} is over 30 words")
+                    if re.search(r"\b(you should|you need to|try to|make sure)\b", reason, re.I):
+                        warnings.append(f"{tag}: reason for {mname} reads as advice")
+        for n in models:
+            if cats and not used[n]:
+                warnings.append(f"Situations: {n} appears in no situation")
+
     if INDEX.exists() and EM_DASH in INDEX.read_text(encoding="utf-8"):
         errors.append("Index: contains em dash")
     for extra in ("CLAUDE.md", "README.md"):

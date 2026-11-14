@@ -7,7 +7,9 @@ This repo is a mental models library published as a small offline-capable websit
 - Filename = the model's common name, e.g. "Brooks's Law.md".
 - Models Index.md at the repo root lists every article grouped by domain, one line each with a [[link]] and a short description. Update it whenever you add an article.
 - Before writing, check /Models for an existing file or alias so you never create duplicates.
-- The website is generated from /Models and Models Index.md by `python3 scripts/build.py` into /_site (never committed). Do not hand-edit generated output.
+- Situations.md at the repo root powers the issue finder ("What's going on?" page). Format:
+  `## Category`, `### Situation title` (how a person would describe it, under 9 words), `keywords: comma, separated, phrases` (8 to 15 everyday words people would type), then 2 to 4 lines `- [[Exact Model Name]]: one sentence (max 25 words) on what this model reveals about this situation`. Every article should appear in at least 2 situations; when adding an article, add it to the situations it fits. Reasons explain relevance; they never tell Michael what to do.
+- The website is generated from /Models, Models Index.md and Situations.md by `python3 scripts/build.py` into /_site (never committed). Do not hand-edit generated output.
 
 ## Article format
 Frontmatter:

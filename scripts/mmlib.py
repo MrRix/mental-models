@@ -137,5 +137,51 @@ def parse_index():
     return groups, errors
 
 
+SITUATIONS = ROOT / "Situations.md"
+
+
+def parse_situations():
+    """Parse Situations.md (the issue finder's curated guide).
+
+    ## Category
+    ### Situation title
+    keywords: word, phrase, another phrase
+    - [[Model Name]]: one sentence on why this model is relevant here.
+
+    Returns (categories, errors). categories: [{"name", "situations": [{"title", "id",
+    "keywords", "models": [(name, reason)]}]}].
+    """
+    if not SITUATIONS.exists():
+        return [], []
+    cats, errors, cur = [], [], None
+    for n, line in enumerate(SITUATIONS.read_text(encoding="utf-8").splitlines(), 1):
+        s = line.strip()
+        if not s or s.startswith("# ") or s.startswith(">"):
+            continue
+        if s.startswith("## "):
+            cats.append({"name": s[3:].strip(), "situations": []})
+            cur = None
+        elif s.startswith("### "):
+            if not cats:
+                errors.append(f"line {n}: situation before any ## category")
+                continue
+            cur = {"title": s[4:].strip(), "id": "s-" + slugify(s[4:]), "keywords": [], "models": []}
+            cats[-1]["situations"].append(cur)
+        elif s.lower().startswith("keywords:"):
+            if cur is None:
+                errors.append(f"line {n}: keywords outside a situation")
+                continue
+            cur["keywords"] += [k.strip() for k in s.split(":", 1)[1].split(",") if k.strip()]
+        elif s.startswith("- "):
+            m = re.match(r"^- \[\[([^\]|]+)\]\]:\s*(.+)$", s)
+            if cur is None or not m:
+                errors.append(f"line {n}: unparseable model line: {s!r}")
+                continue
+            cur["models"].append((m.group(1).strip(), m.group(2).strip()))
+        else:
+            errors.append(f"line {n}: unexpected line: {s[:60]!r}")
+    return cats, errors
+
+
 def link_targets(text: str):
     return [m.group(1).strip() for m in WIKILINK.finditer(text)]

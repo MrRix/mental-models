@@ -9,9 +9,15 @@ why it works, its limits, counter-models, and three recall cards.
 On iPhone, open the link in Safari, tap Share, then **Add to Home Screen**. Open it once from
 the home screen while online and every article is saved for offline reading.
 
+## Features
+
+- **What's going on?** (`guide.html`): describe a situation in your own words, or pick one of the common situations, and see the models that bear on it with a one-line reason each. Matching runs entirely on the phone: curated situations (`Situations.md`) rank first, then article text, with light stemming, synonyms (including feelings like "stressed" or "stuck"), prefix matching while typing and typo tolerance. The query is kept in the URL hash (`#q=`), which never leaves the device.
+- **Display settings** (the **Aa** button on every page): text size (85% to 200%, multiplying the iPhone's own Text Size), theme (System, Light, Dark), typeface (Serif, Sans) and line spacing. Applied before the first paint, saved on the device only.
+- Offline reading, recall cards, random and "Up next" reading, continue-reading and read marks.
+
 ## How it works
 
-- Articles are Markdown files in `Models/`, indexed in `Models Index.md`. Rules for writing them are in `CLAUDE.md`.
+- Articles are Markdown files in `Models/`, indexed in `Models Index.md`. The issue finder's situations live in `Situations.md`. Rules for writing both are in `CLAUDE.md`.
 - `python3 scripts/build.py` turns them into a static site in `_site/` (not committed). Standard library only, no dependencies.
 - `python3 scripts/audit.py` checks format, sections, word counts, em dashes, links and the Index. `--backlog` lists unwritten models that other articles already link to.
 - Pushing to `main` runs `.github/workflows/pages.yml`, which guards, audits, builds and deploys to GitHub Pages.
