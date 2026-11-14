@@ -205,7 +205,8 @@ header.home h1 { font: 700 calc(32 * var(--hx))/1.15 var(--serif); margin: 0; le
 .list .desc { grid-column: 1 / -1; color: var(--muted); font-size: calc(14.5 * var(--px)); line-height: calc(1.45 * var(--lhm)); }
 .empty { color: var(--muted); text-align: center; margin-top: 32px; }
 
-/* ---------- Top bar (article, cards, guide) ---------- */
+/* ---------- Top bar (article, cards, guide) ----------
+   Chrome grows at half rate (--hx) so large text sizes keep the bar on one row. */
 header.bar {
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; column-gap: 8px;
   padding: calc(6px + var(--safe-top)) 0 6px; position: sticky; top: 0; z-index: 2;
@@ -214,13 +215,13 @@ header.bar {
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   box-shadow: 0 1px 0 var(--line);
 }
-.back { text-decoration: none; font-weight: 600; font-size: calc(16 * var(--px)); line-height: 1.2; min-height: 44px; padding-right: 8px; display: inline-flex; align-items: center; -webkit-tap-highlight-color: transparent; }
-.back span { font-size: calc(26 * var(--px)); line-height: 1; margin-right: 4px; margin-top: -2px; }
+.back { text-decoration: none; font-weight: 600; font-size: calc(16 * var(--hx)); line-height: 1.2; min-height: 44px; padding-right: 8px; display: inline-flex; align-items: center; -webkit-tap-highlight-color: transparent; }
+.back span { font-size: calc(26 * var(--hx)); line-height: 1; margin-right: 4px; margin-top: -2px; }
 .bar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-header.bar button { position: relative; padding: 8px 16px; min-height: 36px; font-size: calc(14 * var(--px)); }
+header.bar button { position: relative; padding: 8px 16px; min-height: 36px; font-size: calc(14 * var(--hx)); }
 header.bar button::after { content: ""; position: absolute; inset: -5px -4px; } /* 44px+ hit area */
 header.bar .settings-btn { padding: 0 12px; }
-header.bar .settings-btn span { font-size: calc(16 * var(--px)); }
+header.bar .settings-btn span { font-size: calc(16 * var(--hx)); }
 .readbar {
   position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px;
   background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); opacity: 0.85;
